@@ -45,12 +45,13 @@ func EstGas(fromAddr, toAddr common.Address) (ret uint64, err error) {
 		To:    &toAddr,
 		Value: to.FromEther(3.0),
 	}
-	if r, err := client.EstimateGas(context.Background(), txCall); err == nil {
+	if r, er := client.EstimateGas(context.Background(), txCall); er == nil {
 		ret = r
+		err = nil
 	} else {
-		return ret, err
+		err = er
 	}
-	return ret, nil
+	return
 }
 
 func BlockNumber() (num uint64) {
@@ -64,8 +65,9 @@ func BlockNumber() (num uint64) {
 
 // GasTipCap retrieves the currently suggested gas tip cap, in GWei
 func GasTipCap() (res float64, err error) {
-	if ret, err := client.SuggestGasTipCap(context.Background()); err != nil {
-		return res, err
+	if ret, er := client.SuggestGasTipCap(context.Background()); er != nil {
+		err = er
+		return
 	} else {
 		res = to.ToGWei(ret.Uint64())
 	}
@@ -75,8 +77,9 @@ func GasTipCap() (res float64, err error) {
 // GasPrice retrieves the currently suggested gas price to allow a timely
 // execution of a transaction.
 func GasPrice() (res float64, err error) {
-	if ret, err := client.SuggestGasPrice(context.Background()); err != nil {
-		return res, err
+	if ret, er := client.SuggestGasPrice(context.Background()); er != nil {
+		err = er
+		return
 	} else {
 		res = to.ToGWei(ret.Uint64())
 	}

@@ -1,0 +1,121 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/kjx98/go-eth"
+	"github.com/kjx98/golib/to"
+)
+
+// erc20@kraken   0xf499de5d77d511c8b7d3102978c5ca2cba40e0d5
+// ETH@kraken	  0xeb8f5d4f02e15441282408c822d8931f5f2d9670
+var (
+	useNative     bool
+	waitTx        bool
+	gasPriceLimit float64
+	tipLimit      float64
+)
+
+func main() {
+	flag.BoolVar(&useNative, "eth", false, "deposit to ETH address")
+	flag.BoolVar(&waitTx, "wait", false, "wait for TransactionReceipt")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: kdep [options] <acct/hash> [value] [gasPriceLimit]\n")
+		flag.PrintDefaults()
+		os.Exit(2)
+	}
+	flag.Parse()
+	if err := eth.NewInfura(); err != nil {
+		log.Fatal(err)
+	}
+
+	if len(flag.Args()) == 0 {
+		log.Fatal("Account/Hash missing")
+	}
+	if waitTx {
+		// call waitTx
+		txHash := common.HexToHash(flag.Arg(0))
+		waitConfirm(txHash)
+		os.Exit(0)
+	}
+	if gasPrice, err := eth.GasPrice(); err == nil {
+		gasPriceLimit = gasPrice // normal, fast set to 110%
+	} else {
+		log.Fatal("Get gasPrice:", err)
+	}
+	if tipCap, err := eth.GasTipCap(); err == nil {
+		tipLimit = tipCap * 1.1 // faster tip
+	} else {
+		log.Fatal("Get gaTipCap:", err)
+	}
+	if len(flag.Args()) > 2 {
+		gasPriceLimit = to.Double(flag.Arg(2))
+		tipLimit = 2.0
+	}
+	fromAddr := common.HexToAddress(flag.Arg(0))
+	toAddr := common.HexToAddress("0xf499de5d77d511c8b7d3102978c5ca2cba40e0d5")
+	if useNative {
+		toAddr = common.HexToAddress("eb8f5d4f02e15441282408c822d8931f5f2d9670")
+	}
+	if acct, err := eth.Find(fromAddr); err == nil {
+		pwd := utils.GetPassPhrase("unlock acct "+fromAddr.String(), false)
+		if err := eth.Unlock(acct, pwd); err != nil {
+			log.Fatal("Unlock failed:", err)
+		}
+	} else {
+		log.Fatal("No such account: ", fromAddr)
+	}
+
+	var vETH float64
+	var gasLimit uint64
+	if ret, err := eth.EstGas(fromAddr, toAddr); err == nil {
+		gasLimit = ret
+	} else {
+		gasLimit = 65000
+	}
+	feeETH := float64(gasLimit) * gasPriceLimit * 0.000000001
+	if len(flag.Args()) < 2 {
+		if ret, err := eth.PendingBalance(fromAddr); err == nil {
+			vETH = ret - feeETH
+		} else {
+			log.Fatal("get PendingBalance:", err)
+		}
+	} else {
+		vETH = to.Double(flag.Arg(1))
+	}
+
+	fmt.Printf("Deposit %.4f(ETH) from %v \n", vETH, fromAddr)
+	fmt.Printf("Use gasPrice: %.3f,  TipCap: %.3f\n", gasPriceLimit, tipLimit)
+	fmt.Printf("Tx fee %.8f ETH\n", feeETH)
+
+	if tx, err := eth.NewTx(fromAddr, toAddr, vETH, gasLimit, gasPriceLimit,
+		tipLimit); err != nil {
+		log.Fatal("NewTX: ", err)
+	} else {
+		txHash := eth.SendTx(tx)
+		fmt.Printf("Deposit tx: %s\n", txHash.Hex())
+	}
+}
+
+func waitConfirm(txHash common.Hash) {
+	tEnd := time.Now().Unix() + 300 // 5 minutes
+	for time.Now().Unix() < tEnd {
+		if res, err := eth.TransactionReceipt(txHash); err == nil {
+			// dump confirm
+			fmt.Printf("%s mined @%d gasUsed %d\n", txHash.Hex(),
+				res.BlockNumber.Uint64(), res.GasUsed)
+			if res.EffectiveGasPrice != nil {
+				fmt.Printf("GasPrice: %.3f\n", to.ToGWei(res.EffectiveGasPrice.Uint64()))
+			}
+			break
+		}
+		// sleep 5 seconds
+		time.Sleep(5 * time.Second)
+	}
+}
