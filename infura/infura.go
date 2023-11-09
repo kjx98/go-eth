@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/kjx98/go-eth"
 )
 
@@ -28,4 +30,13 @@ func main() {
 	//fmt.Println("ok")
 	fmt.Printf("%8.3f(fast), %8.3f(normal), %8.3f(slow)\n", reward[2],
 		reward[1], reward[0])
+	if len(os.Args) > 1 {
+		acct := common.HexToAddress(os.Args[1])
+		bal, err := eth.Balance(acct)
+		if err != nil {
+			log.Fatal("Get Balance: ", err)
+		} else {
+			fmt.Printf("%v latest balance: %.8f\n", acct, bal)
+		}
+	}
 }
