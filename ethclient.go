@@ -39,20 +39,18 @@ func NewInfura() error {
 // the current pending state of the backend blockchain. There is no guarantee that this is
 // the true gas limit requirement as other transactions may be added or removed by miners,
 // but it should provide a basis for setting a reasonable default.
-func EstGas(fromAddr string) uint64 {
-	toAddr := common.HexToAddress("0xf499de5d77d511c8b7d3102978c5ca2cba40e0d5")
+func EstGas(fromAddr, toAddr common.Address) (ret uint64, err error) {
 	txCall := callMsg{
-		From:  common.HexToAddress(fromAddr),
+		From:  fromAddr,
 		To:    &toAddr,
 		Value: to.FromEther(3.0),
 	}
-	var ret uint64
 	if r, err := client.EstimateGas(context.Background(), txCall); err == nil {
 		ret = r
 	} else {
-		log.Fatal("client.EstimateGas failed:", err)
+		return ret, err
 	}
-	return ret
+	return ret, nil
 }
 
 func BlockNumber() (num uint64) {
@@ -65,26 +63,24 @@ func BlockNumber() (num uint64) {
 }
 
 // GasTipCap retrieves the currently suggested gas tip cap, in GWei
-func GasTipCap() float64 {
-	var res float64
+func GasTipCap() (res float64, err error) {
 	if ret, err := client.SuggestGasTipCap(context.Background()); err != nil {
-		log.Fatal("client.SuggestGasTipCap:", err)
+		return res, err
 	} else {
 		res = to.ToGWei(ret.Uint64())
 	}
-	return res
+	return res, nil
 }
 
 // GasPrice retrieves the currently suggested gas price to allow a timely
 // execution of a transaction.
-func GasPrice() float64 {
-	var res float64
+func GasPrice() (res float64, err error) {
 	if ret, err := client.SuggestGasPrice(context.Background()); err != nil {
-		log.Fatal("client.SuggestGasPrice:", err)
+		return res, err
 	} else {
 		res = to.ToGWei(ret.Uint64())
 	}
-	return res
+	return res, nil
 }
 
 func FeeHistory() (base float64, reward []float64) {
@@ -102,22 +98,27 @@ func FeeHistory() (base float64, reward []float64) {
 }
 
 // NewTx  create Tx for transfer and signed
-func NewTx(fromAddr, toAddr common.Address, valueEth float64, feeMax float64) *types.Transaction {
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddr)
-	if err != nil {
-		log.Fatal("client.PendingNonceAt failed:", err)
-	}
+//
+//	valueEth		in Ether
+//	feeMax, tipMax	in GWei
+func NewTx(fromAddr, toAddr common.Address, valueEth float64, gasLimit uint64,
+	feeMax, tipMax float64) (*types.Transaction, error) {
 
 	value := to.FromEther(valueEth) // in wei
-	gasLimit := uint64(52680)       // in units, erc20@kraken 52653
-	tip := big.NewInt(2000000000)   // maxPriorityFeePerGas = 2 Gwei
+	tip := new(big.Int)
+	tip.SetUint64(to.FromGWei(tipMax)) // maxPriorityFeePerGas Gwei
+
 	feeCap := new(big.Int)
 	feeCap.SetUint64(to.FromGWei(feeMax)) // maxFeePerGas Gwei
 
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddr)
+	if err != nil {
+		return nil, err
+	}
 	chainID, err := client.ChainID(context.Background())
 	//chainID, err := client.NetworkID(context.Background())
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	tx := types.NewTx(&types.DynamicFeeTx{
@@ -131,19 +132,44 @@ func NewTx(fromAddr, toAddr common.Address, valueEth float64, feeMax float64) *t
 	})
 	acct, err := Find(fromAddr)
 	if err != nil {
-		log.Fatal(fromAddr.String(), "NOT FOUND:", err)
+		return nil, err
 	}
 	signedTx, err := SignTx(acct, tx, chainID)
 	if err != nil {
-		log.Fatal("SignTx failed:", err)
+		return nil, err
 	}
-	return signedTx
+	return signedTx, nil
 }
 
-func SendTx(tx *types.Transaction) string {
+func SendTx(tx *types.Transaction) common.Hash {
 	if err := client.SendTransaction(context.Background(), tx); err != nil {
 		log.Fatal("client.SendTransaction failed:", err)
 	}
 
-	return tx.Hash().Hex()
+	return tx.Hash()
+}
+
+// TransactionReceipt returns the receipt of a transaction by transaction hash.
+// Note that the receipt is not available for pending transactions.
+func TransactionReceipt(txHash common.Hash) (*types.Receipt, error) {
+	return client.TransactionReceipt(context.Background(), txHash)
+}
+
+// BalanceAt returns the ether balance of the given account.
+func Balance(acct common.Address) (float64, error) {
+	if ret, err := client.BalanceAt(context.Background(), acct, nil); err != nil {
+		return 0.0, err
+	} else {
+		return to.ToEther(ret), err
+	}
+}
+
+// PendingBalanceAt returns the ether balance of the given account in the
+// pending state.
+func PendingBalance(acct common.Address) (float64, error) {
+	if ret, err := client.PendingBalanceAt(context.Background(), acct); err != nil {
+		return 0.0, err
+	} else {
+		return to.ToEther(ret), err
+	}
 }

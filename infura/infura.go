@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/kjx98/go-eth"
 )
@@ -17,12 +16,9 @@ func main() {
 	}
 
 	fmt.Printf("Lastest blockNumber: %d\n", eth.BlockNumber())
-	fmt.Printf("gasPrice: %8.3f,  TipCap: %8.3f\n", eth.GasPrice(),
-		eth.GasTipCap())
-
-	if len(os.Args) > 1 {
-		fmt.Printf("EstGas for transfer: %d\n", eth.EstGas(os.Args[1]))
-	}
+	gasPrice, _ := eth.GasPrice()
+	tipCap, _ := eth.GasTipCap()
+	fmt.Printf("gasPrice: %8.3f,  TipCap: %8.3f\n", gasPrice, tipCap)
 
 	base, reward := eth.FeeHistory()
 	fmt.Printf("Base Gas price: %8.3f\nRewards: ", base)
