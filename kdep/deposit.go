@@ -20,11 +20,13 @@ var (
 	waitTx        bool
 	gasPriceLimit float64
 	tipLimit      float64
+	nonce         uint64
 )
 
 func main() {
 	flag.BoolVar(&useNative, "eth", false, "deposit to ETH address")
 	flag.BoolVar(&waitTx, "wait", false, "wait for TransactionReceipt")
+	flag.Uint64Var(&nonce, "nonce", 0, "special nonce tx ro replace")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: kdep [options] <acct/hash> [value] [gasPriceLimit]\n")
 		flag.PrintDefaults()
@@ -63,6 +65,11 @@ func main() {
 	if useNative {
 		toAddr = common.HexToAddress("eb8f5d4f02e15441282408c822d8931f5f2d9670")
 	}
+	if nonce == 0 {
+		if n, err := eth.PendingNonce(fromAddr); err == nil {
+			nonce = n
+		}
+	}
 	if acct, err := eth.Find(fromAddr); err == nil {
 		pwd := utils.GetPassPhrase("unlock acct "+fromAddr.String(), false)
 		if err := eth.Unlock(acct, pwd); err != nil {
@@ -94,8 +101,8 @@ func main() {
 	fmt.Printf("Use gasPrice: %.3f,  TipCap: %.3f\n", gasPriceLimit, tipLimit)
 	fmt.Printf("Tx fee %.8f ETH\n", feeETH)
 
-	if tx, err := eth.NewTx(fromAddr, toAddr, vETH, gasLimit, gasPriceLimit,
-		tipLimit); err != nil {
+	if tx, err := eth.NewTx(fromAddr, toAddr, vETH, nonce, gasLimit,
+		gasPriceLimit, tipLimit); err != nil {
 		log.Fatal("NewTX: ", err)
 	} else {
 		txHash := eth.SendTx(tx)
@@ -114,6 +121,8 @@ func waitConfirm(txHash common.Hash) {
 				fmt.Printf("GasPrice: %.3f\n", to.ToGWei(res.EffectiveGasPrice.Uint64()))
 			}
 			break
+		} else {
+			fmt.Println("Tx confirmation", err)
 		}
 		// sleep 5 seconds
 		time.Sleep(5 * time.Second)

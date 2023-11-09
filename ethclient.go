@@ -100,12 +100,16 @@ func FeeHistory() (base float64, reward []float64) {
 	return
 }
 
+func PendingNonce(fromAddr common.Address) (uint64, error) {
+	return client.PendingNonceAt(context.Background(), fromAddr)
+}
+
 // NewTx  create Tx for transfer and signed
 //
 //	valueEth		in Ether
 //	feeMax, tipMax	in GWei
-func NewTx(fromAddr, toAddr common.Address, valueEth float64, gasLimit uint64,
-	feeMax, tipMax float64) (*types.Transaction, error) {
+func NewTx(fromAddr, toAddr common.Address, valueEth float64, nonce uint64,
+	gasLimit uint64, feeMax, tipMax float64) (*types.Transaction, error) {
 
 	value := to.FromEther(valueEth) // in wei
 	tip := new(big.Int)
@@ -114,10 +118,6 @@ func NewTx(fromAddr, toAddr common.Address, valueEth float64, gasLimit uint64,
 	feeCap := new(big.Int)
 	feeCap.SetUint64(to.FromGWei(feeMax)) // maxFeePerGas Gwei
 
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddr)
-	if err != nil {
-		return nil, err
-	}
 	chainID, err := client.ChainID(context.Background())
 	//chainID, err := client.NetworkID(context.Background())
 	if err != nil {
