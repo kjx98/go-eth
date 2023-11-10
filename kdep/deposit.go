@@ -58,7 +58,7 @@ func main() {
 	}
 	if len(flag.Args()) > 2 {
 		gasPriceLimit = to.Double(flag.Arg(2))
-		tipLimit = 2.0
+		tipLimit = 3.0
 	}
 	fromAddr := common.HexToAddress(flag.Arg(0))
 	toAddr := common.HexToAddress("0xf499de5d77d511c8b7d3102978c5ca2cba40e0d5")
@@ -98,7 +98,7 @@ func main() {
 	}
 
 	fmt.Printf("Deposit %.4f(ETH) from %v \n", vETH, fromAddr)
-	fmt.Printf("Use gasPrice: %.3f,  TipCap: %.3f\n", gasPriceLimit, tipLimit)
+	fmt.Printf("Use gasPrice: %.4f,  TipCap: %.4f\n", gasPriceLimit, tipLimit)
 	fmt.Printf("Tx fee %.8f ETH\n", feeETH)
 
 	if tx, err := eth.NewTx(fromAddr, toAddr, vETH, nonce, gasLimit,
@@ -118,7 +118,7 @@ func waitConfirm(txHash common.Hash) {
 			fmt.Printf("%s mined @%d gasUsed %d\n", txHash.Hex(),
 				res.BlockNumber.Uint64(), res.GasUsed)
 			if res.EffectiveGasPrice != nil {
-				fmt.Printf("GasPrice: %.3f\n", to.ToGWei(res.EffectiveGasPrice.Uint64()))
+				fmt.Printf("GasPrice: %.8f\n", to.ToGWei(res.EffectiveGasPrice.Uint64()))
 			}
 			break
 		} else {
