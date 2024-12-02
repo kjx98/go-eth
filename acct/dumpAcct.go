@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -18,6 +19,12 @@ func main() {
 			pwd := utils.GetPassPhrase("unlock acct "+unlockAc.String(), false)
 			if err := eth.Unlock(acct, pwd); err == nil {
 				fmt.Println("Unlock successfully")
+				if key, err := eth.GetKey(unlockAc, pwd); err != nil {
+					fmt.Println("Decrypt error:", err)
+				} else {
+					privKey := hex.EncodeToString(key.PrivateKey.D.Bytes())
+					fmt.Println("Secret Key: ", privKey)
+				}
 			} else {
 				fmt.Println("Unlock failed:", err)
 			}
