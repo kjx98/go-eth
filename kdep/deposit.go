@@ -13,6 +13,7 @@ import (
 	"github.com/kjx98/golib/to"
 )
 
+// 0xf499... out, expired
 // erc20@kraken   0xf499de5d77d511c8b7d3102978c5ca2cba40e0d5
 // ETH@kraken	  0xeb8f5d4f02e15441282408c822d8931f5f2d9670
 var (
@@ -24,7 +25,7 @@ var (
 )
 
 func main() {
-	flag.BoolVar(&useNative, "eth", false, "deposit to ETH address")
+	flag.BoolVar(&useNative, "eth", true, "deposit to ETH address")
 	flag.BoolVar(&waitTx, "wait", false, "wait for TransactionReceipt")
 	flag.Uint64Var(&nonce, "nonce", 0, "special nonce tx ro replace")
 	flag.Usage = func() {
