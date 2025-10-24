@@ -16,9 +16,11 @@ import (
 // 0xf499... out, expired
 // erc20@kraken   0xf499de5d77d511c8b7d3102978c5ca2cba40e0d5
 // ETH@kraken	  0xeb8f5d4f02e15441282408c822d8931f5f2d9670
+// ETH@hlp		0xfEb8F1aA128FC340A91cDDF5FA23dEcc7C329E23
 var (
 	useNative     bool
 	waitTx        bool
+	useHLP        bool
 	gasPriceLimit float64
 	tipLimit      float64
 	nonce         uint64
@@ -26,6 +28,7 @@ var (
 
 func main() {
 	flag.BoolVar(&useNative, "eth", true, "deposit to ETH address")
+	flag.BoolVar(&useHLP, "hlp", false, "deposit to HLP ETH address")
 	flag.BoolVar(&waitTx, "wait", false, "wait for TransactionReceipt")
 	flag.Uint64Var(&nonce, "nonce", 0, "special nonce tx ro replace")
 	flag.Usage = func() {
@@ -53,7 +56,8 @@ func main() {
 		log.Fatal("Get gasPrice:", err)
 	}
 	if tipCap, err := eth.GasTipCap(); err == nil {
-		tipLimit = tipCap * 1.1 // faster tip
+		//tipLimit = tipCap * 1.1 // faster tip
+		tipLimit = tipCap * 0.5 // slower tip
 	} else {
 		log.Fatal("Get gaTipCap:", err)
 	}
@@ -63,7 +67,10 @@ func main() {
 	}
 	fromAddr := common.HexToAddress(flag.Arg(0))
 	toAddr := common.HexToAddress("0xf499de5d77d511c8b7d3102978c5ca2cba40e0d5")
-	if useNative {
+	if useHLP {
+		toAddr = common.HexToAddress("0xfEb8F1aA128FC340A91cDDF5FA23dEcc7C329E23")
+		tipLimit = 0
+	} else if useNative {
 		toAddr = common.HexToAddress("eb8f5d4f02e15441282408c822d8931f5f2d9670")
 	}
 	if nonce == 0 {
